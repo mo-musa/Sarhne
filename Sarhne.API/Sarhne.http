@@ -1,0 +1,6 @@
+@Sarhne_HostAddress = http://localhost:5123
+
+GET {{Sarhne_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

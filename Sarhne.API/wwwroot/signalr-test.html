@@ -1,0 +1,435 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Sarhne SignalR Test</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        #status {
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        #notifications {
+            margin-top: 20px;
+        }
+
+        .notification {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        .notification-status {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Sarhne SignalR Test</h1>
+
+    <label>
+        JWT Token:
+    </label>
+
+    <textarea id="token"
+              placeholder="Paste your JWT token here..."></textarea>
+
+    <div>
+        <button onclick="connect()">
+            Connect
+        </button>
+
+        <button onclick="disconnect()">
+            Disconnect
+        </button>
+    </div>
+
+    <div id="status">
+        Status: Disconnected
+    </div>
+
+    <h2>Notifications</h2>
+
+    <div id="notifications"></div>
+
+    <script>
+
+        let connection = null;
+
+
+        // ============================================================
+        // Connect
+        // ============================================================
+
+        async function connect() {
+
+            const token =
+                document.getElementById("token")
+                    .value
+                    .trim();
+
+            if (!token) {
+                alert("Please enter JWT token.");
+                return;
+            }
+
+            if (connection) {
+                console.log(
+                    "SignalR connection already exists."
+                );
+
+                return;
+            }
+
+            connection =
+                new signalR.HubConnectionBuilder()
+
+                    .withUrl("/hubs/notifications", {
+                        accessTokenFactory: () => token
+                    })
+
+                    .withAutomaticReconnect()
+
+                    .build();
+
+
+            // ========================================================
+            // Notification Received
+            // ========================================================
+
+            connection.on(
+                "NotificationReceived",
+                notification => {
+
+                    console.log(
+                        "Notification received:",
+                        notification
+                    );
+
+                    displayNotification(
+                        notification
+                    );
+                }
+            );
+
+
+            // ========================================================
+            // Notification Read
+            // ========================================================
+
+            connection.on(
+                "NotificationRead",
+                notification => {
+
+                    console.log(
+                        "Notification marked as read:",
+                        notification
+                    );
+
+                    markNotificationAsRead(
+                        notification.notificationId
+                    );
+                }
+            );
+
+
+            // ========================================================
+            // All Notifications Read
+            // ========================================================
+
+            connection.on(
+                "AllNotificationsRead",
+                () => {
+
+                    console.log(
+                        "All notifications marked as read."
+                    );
+
+                    markAllNotificationsAsRead();
+                }
+            );
+
+
+            // ========================================================
+            // Reconnecting
+            // ========================================================
+
+            connection.onreconnecting(error => {
+
+                setStatus(
+                    "Reconnecting..."
+                );
+
+                console.error(
+                    "SignalR reconnecting:",
+                    error
+                );
+            });
+
+
+            // ========================================================
+            // Reconnected
+            // ========================================================
+
+            connection.onreconnected(connectionId => {
+
+                setStatus(
+                    "Connected"
+                );
+
+                console.log(
+                    "SignalR reconnected:",
+                    connectionId
+                );
+            });
+
+
+            // ========================================================
+            // Closed
+            // ========================================================
+
+            connection.onclose(error => {
+
+                setStatus(
+                    "Disconnected"
+                );
+
+                console.error(
+                    "SignalR connection closed:",
+                    error
+                );
+
+                connection = null;
+            });
+
+
+            // ========================================================
+            // Start
+            // ========================================================
+
+            try {
+
+                await connection.start();
+
+                setStatus(
+                    "Connected"
+                );
+
+                console.log(
+                    "SignalR connected."
+                );
+
+            }
+            catch (error) {
+
+                setStatus(
+                    "Connection failed"
+                );
+
+                console.error(
+                    "SignalR connection failed:",
+                    error
+                );
+
+                connection = null;
+            }
+        }
+
+
+        // ============================================================
+        // Disconnect
+        // ============================================================
+
+        async function disconnect() {
+
+            if (!connection)
+                return;
+
+            try {
+
+                await connection.stop();
+
+            }
+            catch (error) {
+
+                console.error(
+                    "SignalR disconnect failed:",
+                    error
+                );
+            }
+
+            connection = null;
+
+            setStatus(
+                "Disconnected"
+            );
+        }
+
+
+        // ============================================================
+        // Status
+        // ============================================================
+
+        function setStatus(status) {
+
+            document.getElementById("status")
+                .innerText =
+                `Status: ${status}`;
+        }
+
+
+        // ============================================================
+        // Display Notification
+        // ============================================================
+
+        function displayNotification(notification) {
+
+            const container =
+                document.getElementById(
+                    "notifications"
+                );
+
+            const element =
+                document.createElement("div");
+
+            element.className =
+                "notification";
+
+
+            // نحتفظ بالـ notification ID
+            // عشان NotificationRead يقدر
+            // يحدد الـ notification المطلوبة.
+
+            element.dataset.notificationId =
+                notification.id;
+
+
+            element.innerHTML = `
+
+                    <strong>
+                        ${notification.title}
+                    </strong>
+
+                    <p>
+                        ${notification.body}
+                    </p>
+
+                    <small>
+
+                        Type:
+                        ${notification.type}
+
+                        <br />
+
+                        Sender:
+                        ${notification.senderUserName ?? "Unknown"}
+
+                        <br />
+
+                        Created:
+                        ${notification.createdAt}
+
+                        <br />
+
+                        Status:
+                        <span class="notification-status">
+                            ${notification.isRead}
+                        </span>
+
+                    </small>
+
+                `;
+
+            container.prepend(
+                element
+            );
+        }
+
+
+        // ============================================================
+        // Mark One Notification As Read
+        // ============================================================
+
+        function markNotificationAsRead(
+            notificationId
+        ) {
+
+            const element =
+                document.querySelector(
+                    `[data-notification-id="${notificationId}"]`
+                );
+
+            if (!element) {
+
+                console.warn(
+                    "Notification element not found:",
+                    notificationId
+                );
+
+                return;
+            }
+
+
+            const status =
+                element.querySelector(
+                    ".notification-status"
+                );
+
+            if (!status)
+                return;
+
+
+            status.innerText =
+                "true";
+        }
+
+
+        // ============================================================
+        // Mark All Notifications As Read
+        // ============================================================
+
+        function markAllNotificationsAsRead() {
+
+            const statuses =
+                document.querySelectorAll(
+                    ".notification-status"
+                );
+
+            statuses.forEach(status => {
+
+                status.innerText =
+                    "true";
+            });
+        }
+
+    </script>
+
+</body>
+</html>

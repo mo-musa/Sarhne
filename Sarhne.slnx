@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Sarhne.API/Sarhne.API.csproj" />
+  <Project Path="Sarhne.Application/Sarhne.Application.csproj" Id="d6a36f3a-c01d-4dd6-b049-4f98b42142f1" />
+  <Project Path="Sarhne.Domain/Sarhne.Domain.csproj" Id="8bab8356-e38a-47fd-9856-acebdc5ba69e" />
+  <Project Path="Sarhne.Infrastructure/Sarhne.Infrastructure.csproj" Id="9c769804-7726-4ad0-aa25-403722b3394a" />
+</Solution>
